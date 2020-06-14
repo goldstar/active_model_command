@@ -60,12 +60,5 @@ module ActiveModel
       @called ||= false
     end
 
-    def command_unauthorized?
-      return false if authorized?
-
-      errors.add(:base, :unauthorized)
-      return true
-    end
-
   end
 end
