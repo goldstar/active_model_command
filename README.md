@@ -40,6 +40,25 @@ en:
 
 ## Usage
 
+A bare minimum example:
+
+```
+class DoubleItCommand
+  prepend ActiveModel::Command
+
+  attr_accessor :x
+
+  def call
+    x * 2
+  end
+end
+
+command = DoubleItCommand.new(9)
+command.call
+command.result #=> 18
+command.success? #=> true
+```
+
 A complete overview
 
 ```
@@ -86,53 +105,6 @@ class AuthenticateUser
 
   def authorized_ip?
     ...
-  end
-end
-```
-
-A bar minimum example:
-
-```
-class DoubleItCommand
-  prepend ActiveModel::Command
-
-  attr_accessor :x
-
-  def call
-    x * 2
-  end
-end
-
-command = DoubleItCommand.new(9)
-command.call
-command.result #=> 18
-command.success? #=> true
-```
-
-Here's an example with some validations:
-
-```
-class AuthenticateUser
-  prepend ActiveModel::Command
-
-  attr_accessor :email, :password
-
-  validates :email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }
-  validates :password, presence: true
-
-  def call
-    if user&.validate_password?(password)
-      user
-    else
-      errors.add(:base, message: "email address or password incorrect")
-      nil
-    end
-  end
-
-  private
-
-  def user
-    @user ||= User.find_by(email: email)
   end
 end
 
