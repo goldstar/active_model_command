@@ -1,22 +1,20 @@
-class ValidatedCommand
+class AfterInitializeCommand
   prepend ActiveModel::Command
 
   attr_accessor :say
-
-  validates :say, length: { minimum: 3 }
-
-  def initialize(say:)
-    @say = say
-  end
 
   def call
     execute_command
   end
 
+  def after_initialize
+    @say = "#{say}!"
+  end
+
   private
 
   def execute_command
-    @say
+    say
   end
 
 end

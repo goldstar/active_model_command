@@ -1,13 +1,7 @@
-class ValidatedCommand
+class SuccessfulCommand
   prepend ActiveModel::Command
 
   attr_accessor :say
-
-  validates :say, length: { minimum: 3 }
-
-  def initialize(say:)
-    @say = say
-  end
 
   def call
     execute_command
@@ -16,7 +10,7 @@ class ValidatedCommand
   private
 
   def execute_command
-    @say
+    say
   end
 
 end

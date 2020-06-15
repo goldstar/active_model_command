@@ -13,9 +13,7 @@ end
 class ValidatedResultCommand
   prepend ActiveModel::Command
 
-  def initialize(name:)
-    @name = name
-  end
+  attr_accessor :name 
 
   def call
     execute_command
@@ -24,7 +22,7 @@ class ValidatedResultCommand
   private
 
   def execute_command
-    Person.new(name: @name).tap{ |p| p.valid? }
+    Person.new(name: name).tap{ |p| p.valid? }
   end
 
 end

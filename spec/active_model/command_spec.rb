@@ -3,7 +3,7 @@ RSpec.describe ActiveModel::Command do
     expect(ActiveModel::Command::VERSION).not_to be nil
   end
 
-  let(:command){ NoopCommand.new(say: "what") }
+  let(:command){ SuccessfulCommand.new(say: "what") }
 
   describe "#call" do
     it "changes success? to true" do
@@ -21,7 +21,7 @@ RSpec.describe ActiveModel::Command do
     end
 
     it "returns the command" do
-      expect(command.call).to be_a(NoopCommand)
+      expect(command.call).to be_a(SuccessfulCommand)
     end
 
     context "with authorizations" do
@@ -117,6 +117,41 @@ RSpec.describe ActiveModel::Command do
       end
     end
 
+    context "when command has noop? that returns true" do
+      before do
+        allow(command).to receive(:noop?).and_return(true)
+      end
+
+      it "does call #call" do # and call only calles execute_command
+        expect(command).to_not receive(:execute_command)
+        command.call
+      end
+
+      it "is successful" do
+        expect{ command.call }.to change{ command.success? }.from(false).to(true)
+      end
+
+      it "has a nil result" do
+        expect{ command.call }.to_not change{ command.result }
+      end
+    end
+
+    context "with an after_initialize" do
+      let(:command){ AfterInitializeCommand.new(say: "Hello") }
+
+      it "can change the attributes" do
+        expect(command.say).to eq("Hello!")
+      end
+    end
+
+    context "with a declared initialize command" do
+      let(:command){ DeclaredInitializeCommand.new(say: "Howdy") }
+
+      it "can initialize however it wants" do
+        expect(command.call.result).to eq("Howdy!")
+      end
+    end
+
     context "#call called more than once" do
       before do
         command.call
@@ -130,14 +165,14 @@ RSpec.describe ActiveModel::Command do
 
   describe '.call' do
     before do
-      allow(NoopCommand).to receive(:new).and_return(command)
+      allow(SuccessfulCommand).to receive(:new).and_return(command)
       allow(command).to receive(:call)
 
-      NoopCommand.call(say: "what")
+      SuccessfulCommand.call(say: "what")
     end
 
     it "initializes the command and calls #call", :aggregate_failures do
-      expect(NoopCommand).to have_received(:new)
+      expect(SuccessfulCommand).to have_received(:new)
       expect(command).to have_received(:call)
     end
   end

@@ -16,8 +16,12 @@ module ActiveModel
 
     def self.prepended(base)
       base.extend ClassMethods
-      base.send(:extend, ActiveModel::Translation)
-      base.send(:include, ActiveModel::Validations)
+      base.send(:include, ActiveModel::Model)
+    end
+
+    def initialize(*args, **kwargs)
+      super(*args, **kwargs) # Either defined in class or passed up to ActiveModel::Model
+      after_initialize
     end
 
     def call
@@ -27,7 +31,7 @@ module ActiveModel
       @called = true
       if !authorized?
         errors.add(:base, :unauthorized)
-      elsif valid?
+      elsif valid? && !noop?
         @result = super
         if @result.respond_to?(:errors) && @result.errors.kind_of?(ActiveModel::Errors)
           errors.merge!(@result.errors)
@@ -52,6 +56,15 @@ module ActiveModel
     def authorized?
       return super if defined?(super)
       true
+    end
+
+    def noop?
+      return super if defined?(super)
+      false
+    end
+
+    def after_initialize
+      return super if defined?(super)
     end
 
     private

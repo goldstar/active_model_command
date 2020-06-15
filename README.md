@@ -4,9 +4,11 @@ ActiveModel::Command is a way to add CQRS-style service objects to your project.
 
 Benefits of ActiveModel::Command:
 
+* The command is an ActiveModel::Model. No need to define initialize but you still can if you want.
 * ActiveModel::Command's errors are instances of ActiveModel::Errors (the same error objects that ActiveRecord uses)
 * You can add ActiveModel::Validations to validate the input to your command. These validations are run before the command's result is generated and the result is only generated when they are valid.
 * ActiveModel::Commands have an `authorized?` hook which is useful when calling commands outside of controller.
+* ActiveModel::Commands have a `noop?` hook which for the command is demeed successful but should't make any changes. This is useful when your command is creating events as part of event sourcing.
 * In many instances a command's result will be an instance of ActiveModel or ActiveRecord. If that result has errors, those errors will be merged with the commands errors.
 
 ## Installation
@@ -44,9 +46,7 @@ In it's simplest form:
 class DoubleItCommand
   prepend ActiveModel::Command
 
-  def initialize(x)
-    @x = x
-  end
+  attr_accessor :x
 
   def call
     x * 2
@@ -65,15 +65,10 @@ Here's an example with some validations:
 class AuthenticateUser
   prepend ActiveModel::Command
 
-  attr_reader :email, :password
+  attr_accessor :email, :password
 
   validates :email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :password, presence: true
-
-  def initialize(email:, password:)
-    @email = email
-    @password = password
-  end
 
   def call
     if user&.validate_password?(password)
@@ -102,18 +97,14 @@ And a more sophisticated example with `authorized?` method.
 class DeletePostCommand
   prepend ActiveModel::Command
 
-  attr_reader :post
-
-  def initialize(post:, current_user:)
-    @post = post
-  end
+  attr_accessor :post
 
   def authorized?
     post.owner == current_user
   end
 
   def call
-    @post.destroy
+    post.destroy
   end
 end
 
@@ -132,6 +123,60 @@ end
 class CreatePostCommand
   prepend ActiveModel::Command
 
+  attr_accessor :content
+
+  def call
+    Post.create(content: content)
+  end
+end
+
+command = CreatePostCommand.call(content)
+command.success? #=> false
+command.errors.full_messages #=> {email: ["Content is blank"] }
+```
+
+Use `after_initialize` to set default.
+
+```
+class CreatePostCommand
+  prepend ActiveModel::Command
+
+  attr_accessor :content
+
+  after_initialize
+    @content ||= "No content"
+  end
+
+  def call
+    Post.create(content: content)
+  end
+end
+```
+
+For event sourcing, there's a `noop?` method.
+
+```
+class updatePost
+  prepend ActiveModel::Command
+
+  attr_accessor :post, :content
+
+  def noop?
+    post.content == content
+  end
+
+  def call
+    build_event
+  end
+end
+```
+
+You can also just include your own initializer similiar to SimpleCommand:
+
+```
+class CreatePostCommand
+  prepend ActiveModel::Command
+
   def initialize(content)
     @content = content
   end
@@ -140,10 +185,6 @@ class CreatePostCommand
     Post.create(content: @content)
   end
 end
-
-command = CreatePostCommand.call(content)
-command.success? #=> false
-command.errors.full_messages #=> {email: ["Content is blank"] }
 ```
 
 

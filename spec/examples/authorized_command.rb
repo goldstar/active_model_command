@@ -1,22 +1,19 @@
 class AuthorizedCommand
   prepend ActiveModel::Command
 
-  def initialize(say:, current_user:)
-    @say = say
-    @current_user = current_user
-  end
+  attr_accessor :say, :current_user
 
   def call
     execute_command
   end
 
   def authorized?
-    @current_user.admin?
+    current_user.admin?
   end
 
   private
 
   def execute_command
-    @say
+    say
   end
 end
