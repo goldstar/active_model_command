@@ -40,7 +40,57 @@ en:
 
 ## Usage
 
-In it's simplest form:
+A complete overview
+
+```
+class AuthenticateUser
+  prepend ActiveModel::Command
+
+  # Declare your attributes or define your own initialize method
+  attr_accessor :ip, :name, :password, :remember_me
+
+  # Declare your validations (optional)
+  validates :email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }
+  validates :password, presence: true
+
+  # Declare an after_initialize (optional)
+  def after_initialize
+    @remember_me ||= false
+  end
+  
+  # Declare an authorized? (optional)
+  def authorized?
+    authorized_ip?(ip)
+  end
+
+  # Declare a possible noop? The command will be successful but never call #call
+  def noop?
+    ...
+  end
+
+  # The required #call method defines your result
+  def call
+    if user && user.validate_password?(password)
+      user.generate_token(remember_me)
+    else
+      errors.add(:base, message: "email address or password incorrect")
+      nil
+    end
+  end
+
+  private
+  
+  def user
+    @user ||= User.find_by(email: email)
+  end
+
+  def authorized_ip?
+    ...
+  end
+end
+```
+
+A bar minimum example:
 
 ```
 class DoubleItCommand
