@@ -53,7 +53,7 @@ class DoubleItCommand
   end
 end
 
-command = DoubleItCommand.new(9)
+command = DoubleItCommand.new(x: 9)
 command.call
 command.result #=> 18
 command.success? #=> true
@@ -152,7 +152,7 @@ class CreatePostCommand
   end
 end
 
-command = CreatePostCommand.call(content)
+command = CreatePostCommand.call(content: content)
 command.success? #=> false
 command.errors.full_messages #=> {email: ["Content is blank"] }
 ```
