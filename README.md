@@ -1,6 +1,6 @@
 # ActiveModel::Command
 
-ActiveModel::Command is a way to add CQRS-style service objects to your project. It was inspired by and is based on [SimpleCommand](https://github.com/nebulab/simple_command) gem with a similar interface. Whereas SimpleCommand has no dependencies and plays well with ActiveModel, ActiveModel::Command does specifically require ActiveModel.
+ActiveModel::Command is a way to add CQRS-style service objects to your project. It was inspired by [SimpleCommand](https://github.com/nebulab/simple_command) and Kickstarters [Lib::Command](https://github.com/pcreux/event-sourcing-rails-todo-app-demo/blob/master/app/models/lib/command.rb) and essentially combines them into a unified interface. 
 
 Benefits of ActiveModel::Command:
 

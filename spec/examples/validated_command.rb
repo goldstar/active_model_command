@@ -5,10 +5,6 @@ class ValidatedCommand
 
   validates :say, length: { minimum: 3 }
 
-  def initialize(say:)
-    @say = say
-  end
-
   def call
     execute_command
   end
@@ -16,7 +12,7 @@ class ValidatedCommand
   private
 
   def execute_command
-    @say
+    say
   end
 
 end
