@@ -72,6 +72,5 @@ module ActiveModel
     def called?
       @called ||= false
     end
-
   end
 end

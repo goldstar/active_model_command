@@ -1,5 +1,6 @@
 require "bundler/setup"
 require "active_model/command"
+require "active_model/composite_command"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
