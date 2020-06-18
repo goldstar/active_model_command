@@ -30,7 +30,7 @@ Or install it yourself as:
 
 Include a default error message for unauthorized commands in our locale file (e.g. config/locales/en.yml)
 
-```
+```yaml
 en:
   activemodel:
     errors:
@@ -42,7 +42,7 @@ en:
 
 A bare minimum example:
 
-```
+```ruby
 class DoubleItCommand
   prepend ActiveModel::Command
 
@@ -61,7 +61,7 @@ command.success? #=> true
 
 A complete overview
 
-```
+```ruby
 class AuthenticateUser
   prepend ActiveModel::Command
 
@@ -115,7 +115,7 @@ command.errors.full_messages #=> {email: ["Email is blank"] }
 
 And a more sophisticated example with `authorized?` method.
 
-```
+```ruby
 class DeletePostCommand
   prepend ActiveModel::Command
 
@@ -137,7 +137,7 @@ command.errors.full_messages #=> { base: ["not allowed"] }
 
 And another that will bubble up errors from the result
 
-```
+```ruby
 class Post < ActiveRecord::Base
   validates :content, presence: true
 end
@@ -159,7 +159,7 @@ command.errors.full_messages #=> {email: ["Content is blank"] }
 
 Use `after_initialize` to set default.
 
-```
+```ruby
 class CreatePostCommand
   prepend ActiveModel::Command
 
@@ -177,8 +177,8 @@ end
 
 For event sourcing, there's a `noop?` method.
 
-```
-class updatePost
+```ruby
+class UpdatePost
   prepend ActiveModel::Command
 
   attr_accessor :post, :content
@@ -195,7 +195,7 @@ end
 
 You can also just include your own initializer similiar to SimpleCommand:
 
-```
+```ruby
 class CreatePostCommand
   prepend ActiveModel::Command
 
@@ -209,6 +209,61 @@ class CreatePostCommand
 end
 ```
 
+### Composite Commands
+
+Composite commands are commands that can run subcommands which, upon failure or exception, halt execution and fail the composite command. Subcommands may be other composite commands.
+
+```ruby
+class TestCommand
+  prepend ActiveModel::Command
+
+  def initialize(on_call)
+    @on_call = on_call
+  end
+
+  def call
+    case @on_call
+    when :raise
+      raise RuntimeError
+    when :success
+      return :success
+    else :failure
+      errors.add(:base, :failure)
+    end
+  end
+end
+
+class CompositeCommand
+  prepend ActiveModel::CompositeCommand
+  attr_reader :subcommands
+
+  validates :subcommands, presence: true
+
+  def initialize(subcommands)
+    @subcommands = subcommands
+  end
+
+  def call
+    subcommands.each do |subcommand|
+      call_subcommand subcommand
+    end
+
+    :result
+  end
+end
+
+success_composite = CompositeCommand.call([TestCommand.new(:success)])
+success_composite.success? # => true
+success_composite.result # => :result
+
+failure_composite = CompositeCommand.call([TestCommand.new(:failure)])
+failure_composite.success? # => false
+failure_composite.errors.details # => {:base=>[{:error=>:failure}]}
+
+deep_failure_composite = CompositeCommand.call([CompositeCommand.new([TestCommand.new(:failure)])])
+deep_failure_composite.success? # => false
+deep_failure_composite.errors.details # => {:base=>[{:error=>:failure}]}
+```
 
 ## Development
 
