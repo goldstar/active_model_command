@@ -9,8 +9,8 @@ module ActiveModel
     attr_reader :result
 
     module ClassMethods
-      def call(*args, **kwargs)
-        new(*args, **kwargs).call
+      def call(*args)
+        new(*args).call
       end
     end
 
@@ -19,8 +19,8 @@ module ActiveModel
       base.send(:include, ActiveModel::Model)
     end
 
-    def initialize(*args, **kwargs)
-      super(*args, **kwargs) # Either defined in class or passed up to ActiveModel::Model
+    def initialize(*)
+      super
       after_initialize
     end
 
