@@ -17,6 +17,7 @@ module ActiveModel
     def self.prepended(base)
       base.extend ClassMethods
       base.send(:include, ActiveModel::Model)
+      base.send(:include, ActiveModel::Validations::Callbacks)
     end
 
     def initialize(*args, **kwargs)

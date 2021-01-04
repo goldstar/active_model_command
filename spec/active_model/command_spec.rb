@@ -117,6 +117,23 @@ RSpec.describe ActiveModel::Command do
       end
     end
 
+    context "with callbacks" do
+      let(:command){ CallbackCommand.new }
+
+      it "does call #call" do # and call only calles execute_command
+        expect(command).to receive(:execute_command)
+        command.call
+      end
+
+      it "does set the result" do
+        expect{ command.call }.to change{ command.result }.to("example")
+      end
+
+      it "doesn't have errors" do
+        expect(command.call.errors).to be_empty
+      end
+    end
+
     context "when command has noop? that returns true" do
       before do
         allow(command).to receive(:noop?).and_return(true)
