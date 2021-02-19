@@ -68,6 +68,13 @@ module ActiveModel
       return super if defined?(super)
     end
 
+    protected
+
+    def given?(attribute_name)
+      respond_to?(attribute_name) &&
+      instance_variable_defined?("@#{attribute_name}")
+    end
+
     private
 
     def called?
