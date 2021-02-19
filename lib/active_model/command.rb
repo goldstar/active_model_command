@@ -4,6 +4,7 @@ require "active_model/command/version"
 module ActiveModel
   module Command
     AlreadyExecuted = Class.new(RuntimeError)
+    UndefinedAggregateError = Class.new(StandardError)
     UnsupportedErrors = Class.new(RuntimeError)
 
     attr_reader :result
@@ -11,6 +12,13 @@ module ActiveModel
     module ClassMethods
       def call(*args, **kwargs)
         new(*args, **kwargs).call
+      end
+
+      attr_accessor :aggregate_name
+
+      def aggregate(value)
+        self.aggregate_name = value
+        attr_accessor value
       end
     end
 
@@ -68,7 +76,34 @@ module ActiveModel
       return super if defined?(super)
     end
 
+    def aggregate
+      return @aggregate if defined? @aggregate
+
+      if self.class.aggregate_name.nil?
+        fail UndefinedAggregateError,
+          "Define aggregate name with .aggregate macro"
+      end
+
+      @aggregate = send(self.class.aggregate_name)
+    end
+
     protected
+
+    def changed?(attribute_name, strict=false)
+      return false unless given?(attribute_name)
+      return false unless aggregate.present?
+      return false unless aggregate.respond_to?(attribute_name)
+
+      original_value = aggregate.public_send(attribute_name)
+      given_value = send(attribute_name)
+
+      if given_value.kind_of?(Array) && !strict
+        original_value ||= []
+        given_value.sort != original_value.sort
+      else
+        given_value != original_value
+      end
+    end
 
     def given?(attribute_name)
       respond_to?(attribute_name) &&
