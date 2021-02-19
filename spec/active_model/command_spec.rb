@@ -178,6 +178,16 @@ RSpec.describe ActiveModel::Command do
         expect{ command.call }.to raise_error(ActiveModel::Command::AlreadyExecuted)
       end
     end
+
+    context "with behavior only when given attribute" do
+      let(:with_given_attribute) { GivenCommand.call(name: "foo") }
+      let(:without_given_attribute) { GivenCommand.call }
+
+      it "can check if attribute was given", :aggregate_failures do
+        expect(with_given_attribute.result).to eq "foo"
+        expect(without_given_attribute.result).to eq nil
+      end
+    end
   end
 
   describe '.call' do
