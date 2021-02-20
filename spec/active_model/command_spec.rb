@@ -189,7 +189,7 @@ RSpec.describe ActiveModel::Command do
       end
     end
 
-    context "with behavior only when given changed attribute for aggregate" do
+    context "with behavior only when given changed attribute for subject" do
       let(:user) {
         ChangedCommand::User.new(
           name: "foo",
@@ -272,43 +272,43 @@ RSpec.describe ActiveModel::Command do
     end
   end
 
-  describe ".aggregate macro" do
+  describe ".subject macro" do
     let(:klass) {
       Class.new do
         prepend ActiveModel::Command
-        aggregate :foo
+        subject :foo
       end
     }
     let(:instance) { klass.new }
 
-    it "assigns .aggregate_name" do
-      expect(klass.aggregate_name).to eq :foo
+    it "assigns .subject_name" do
+      expect(klass.subject_name).to eq :foo
     end
 
-    it "adds accessor for aggregate" do
+    it "adds accessor for subject" do
       expect(instance).
         to respond_to(:foo).
         and respond_to(:foo=)
     end
   end
 
-  describe "#aggregate" do
+  describe "#subject" do
     let(:instance) { klass.new(foo: "bar") }
 
-    subject(:aggregate) { instance.aggregate }
+    subject { instance.subject }
 
-    context "with aggregate defined by macro" do
+    context "with subject defined by macro" do
       let(:klass) {
         Class.new do
           prepend ActiveModel::Command
-          aggregate :foo
+          subject :foo
         end
       }
 
       it { is_expected.to eq "bar" }
     end
 
-    context "without aggregate defined by macro" do
+    context "without subject defined by macro" do
       let(:klass) {
         Class.new do
           prepend ActiveModel::Command
@@ -317,7 +317,7 @@ RSpec.describe ActiveModel::Command do
       }
 
       it "fails with exception" do
-        expect { aggregate }.to raise_error(described_class::UndefinedAggregateError)
+        expect { subject }.to raise_error(described_class::UndefinedSubjectError)
       end
     end
   end

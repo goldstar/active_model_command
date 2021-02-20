@@ -7,7 +7,7 @@ class ChangedCommand
     attr_accessor :name, :sorted_tags, :unsorted_tags
   end
 
-  aggregate :user
+  subject :user
 
   attr_accessor :name, :sorted_tags, :unsorted_tags
 

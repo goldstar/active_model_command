@@ -4,7 +4,7 @@ require "active_model/command/version"
 module ActiveModel
   module Command
     AlreadyExecuted = Class.new(RuntimeError)
-    UndefinedAggregateError = Class.new(StandardError)
+    UndefinedSubjectError = Class.new(StandardError)
     UnsupportedErrors = Class.new(RuntimeError)
 
     attr_reader :result
@@ -14,10 +14,10 @@ module ActiveModel
         new(*args, **kwargs).call
       end
 
-      attr_accessor :aggregate_name
+      attr_accessor :subject_name
 
-      def aggregate(value)
-        self.aggregate_name = value
+      def subject(value)
+        self.subject_name = value
         attr_accessor value
       end
     end
@@ -76,25 +76,25 @@ module ActiveModel
       return super if defined?(super)
     end
 
-    def aggregate
-      return @aggregate if defined? @aggregate
+    def subject
+      return @subject if defined? @subject
 
-      if self.class.aggregate_name.nil?
-        fail UndefinedAggregateError,
-          "Define aggregate name with .aggregate macro"
+      if self.class.subject_name.nil?
+        fail UndefinedSubjectError,
+          "Define subject name with .subject macro"
       end
 
-      @aggregate = send(self.class.aggregate_name)
+      @subject = send(self.class.subject_name)
     end
 
     protected
 
     def changed?(attribute_name, strict=false)
       return false unless given?(attribute_name)
-      return false unless aggregate.present?
-      return false unless aggregate.respond_to?(attribute_name)
+      return false unless subject.present?
+      return false unless subject.respond_to?(attribute_name)
 
-      original_value = aggregate.public_send(attribute_name)
+      original_value = subject.public_send(attribute_name)
       given_value = send(attribute_name)
 
       if given_value.kind_of?(Array) && !strict
