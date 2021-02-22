@@ -188,9 +188,77 @@ RSpec.describe ActiveModel::Command do
         expect(without_given_attribute.result).to eq nil
       end
     end
+
+    context "with behavior only when given changed attribute for subject" do
+      let(:user) {
+        ChangedCommand::User.new(
+          name: "foo",
+          sorted_tags: ["a", "b"],
+          unsorted_tags: ["a", "b"]
+        )
+      }
+      let(:with_changed_attribute) { ChangedCommand.call(user: user, name: "bar") }
+      let(:with_unchanged_attribute) { ChangedCommand.call(user: user, name: user.name) }
+      let(:without_given_attribute) { ChangedCommand.call(user: user) }
+
+      it "can check if attribute was changed", :aggregate_failures do
+        expect(with_changed_attribute).to be_success
+        expect(with_changed_attribute.result).to include :name_changed
+
+        expect(with_unchanged_attribute).to be_success
+        expect(with_unchanged_attribute.result).to_not include :name_changed
+
+        expect(without_given_attribute).to be_success
+        expect(without_given_attribute.result).to_not include :name_changed
+      end
+
+      context "when attribute is an array" do
+        context "and order matters" do
+          let(:with_appended_attribute) { ChangedCommand.call(user: user, sorted_tags: ["a", "b", "c"]) }
+          let(:with_reduced_attribute) { ChangedCommand.call(user: user, sorted_tags: ["a"]) }
+          let(:with_reordered_attribute) { ChangedCommand.call(user: user, sorted_tags: user.sorted_tags.reverse) }
+          let(:with_unchanged_attribute) { ChangedCommand.call(user: user, sorted_tags: user.sorted_tags) }
+
+          it "can check if attribute was changed including order" do
+            expect(with_appended_attribute).to be_success
+            expect(with_appended_attribute.result).to include :sorted_tags_changed
+
+            expect(with_reduced_attribute).to be_success
+            expect(with_reduced_attribute.result).to include :sorted_tags_changed
+
+            expect(with_reordered_attribute).to be_success
+            expect(with_reordered_attribute.result).to include :sorted_tags_changed
+
+            expect(with_unchanged_attribute).to be_success
+            expect(with_unchanged_attribute.result).to_not include :sorted_tags_changed
+          end
+        end
+
+        context "and order doesn't matter" do
+          let(:with_appended_attribute) { ChangedCommand.call(user: user, unsorted_tags: ["a", "b", "c"]) }
+          let(:with_reduced_attribute) { ChangedCommand.call(user: user, unsorted_tags: ["a"]) }
+          let(:with_reordered_attribute) { ChangedCommand.call(user: user, unsorted_tags: user.unsorted_tags.reverse) }
+          let(:with_unchanged_attribute) { ChangedCommand.call(user: user, unsorted_tags: user.unsorted_tags) }
+
+          it "can check if attribute was changed regardless of order" do
+            expect(with_appended_attribute).to be_success
+            expect(with_appended_attribute.result).to include :unsorted_tags_changed
+
+            expect(with_reduced_attribute).to be_success
+            expect(with_reduced_attribute.result).to include :unsorted_tags_changed
+
+            expect(with_reordered_attribute).to be_success
+            expect(with_reordered_attribute.result).to_not include :unsorted_tags_changed
+
+            expect(with_unchanged_attribute).to be_success
+            expect(with_unchanged_attribute.result).to_not include :unsorted_tags_changed
+          end
+        end
+      end
+    end
   end
 
-  describe '.call' do
+  describe ".call" do
     before do
       allow(SuccessfulCommand).to receive(:new).and_return(command)
       allow(command).to receive(:call)
@@ -204,4 +272,53 @@ RSpec.describe ActiveModel::Command do
     end
   end
 
+  describe ".subject macro" do
+    let(:klass) {
+      Class.new do
+        prepend ActiveModel::Command
+        subject :foo
+      end
+    }
+    let(:instance) { klass.new }
+
+    it "assigns .subject_name" do
+      expect(klass.subject_name).to eq :foo
+    end
+
+    it "adds accessor for subject" do
+      expect(instance).
+        to respond_to(:foo).
+        and respond_to(:foo=)
+    end
+  end
+
+  describe "#subject" do
+    let(:instance) { klass.new(foo: "bar") }
+
+    subject { instance.subject }
+
+    context "with subject defined by macro" do
+      let(:klass) {
+        Class.new do
+          prepend ActiveModel::Command
+          subject :foo
+        end
+      }
+
+      it { is_expected.to eq "bar" }
+    end
+
+    context "without subject defined by macro" do
+      let(:klass) {
+        Class.new do
+          prepend ActiveModel::Command
+          attr_accessor :foo
+        end
+      }
+
+      it "fails with exception" do
+        expect { subject }.to raise_error(described_class::UndefinedSubjectError)
+      end
+    end
+  end
 end

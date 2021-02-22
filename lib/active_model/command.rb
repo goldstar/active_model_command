@@ -4,6 +4,7 @@ require "active_model/command/version"
 module ActiveModel
   module Command
     AlreadyExecuted = Class.new(RuntimeError)
+    UndefinedSubjectError = Class.new(StandardError)
     UnsupportedErrors = Class.new(RuntimeError)
 
     attr_reader :result
@@ -11,6 +12,13 @@ module ActiveModel
     module ClassMethods
       def call(*args, **kwargs)
         new(*args, **kwargs).call
+      end
+
+      attr_accessor :subject_name
+
+      def subject(value)
+        self.subject_name = value
+        attr_accessor value
       end
     end
 
@@ -68,7 +76,34 @@ module ActiveModel
       return super if defined?(super)
     end
 
+    def subject
+      return @subject if defined? @subject
+
+      if self.class.subject_name.nil?
+        fail UndefinedSubjectError,
+          "Define subject name with .subject macro"
+      end
+
+      @subject = send(self.class.subject_name)
+    end
+
     protected
+
+    def changed?(attribute_name, strict=false)
+      return false unless given?(attribute_name)
+      return false unless subject.present?
+      return false unless subject.respond_to?(attribute_name)
+
+      original_value = subject.public_send(attribute_name)
+      given_value = send(attribute_name)
+
+      if given_value.kind_of?(Array) && !strict
+        original_value ||= []
+        given_value.sort != original_value.sort
+      else
+        given_value != original_value
+      end
+    end
 
     def given?(attribute_name)
       respond_to?(attribute_name) &&
