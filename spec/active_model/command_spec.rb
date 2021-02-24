@@ -272,36 +272,36 @@ RSpec.describe ActiveModel::Command do
     end
   end
 
-  describe ".subject macro" do
+  describe ".command_subject macro" do
     let(:klass) {
       Class.new do
         prepend ActiveModel::Command
-        subject :foo
+        command_subject :foo
       end
     }
     let(:instance) { klass.new }
 
-    it "assigns .subject_name" do
-      expect(klass.subject_name).to eq :foo
+    it "assigns .command_subject_name" do
+      expect(klass.command_subject_name).to eq :foo
     end
 
-    it "adds accessor for subject" do
+    it "adds accessor for command_subject" do
       expect(instance).
         to respond_to(:foo).
         and respond_to(:foo=)
     end
   end
 
-  describe "#subject" do
+  describe "#command_subject" do
     let(:instance) { klass.new(foo: "bar") }
 
-    subject { instance.subject }
+    subject { instance.command_subject }
 
     context "with subject defined by macro" do
       let(:klass) {
         Class.new do
           prepend ActiveModel::Command
-          subject :foo
+          command_subject :foo
         end
       }
 

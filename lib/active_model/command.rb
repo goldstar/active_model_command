@@ -14,10 +14,10 @@ module ActiveModel
         new(*args, **kwargs).call
       end
 
-      attr_accessor :subject_name
+      attr_accessor :command_subject_name
 
-      def subject(value)
-        self.subject_name = value
+      def command_subject(value)
+        self.command_subject_name = value
         attr_accessor value
       end
     end
@@ -76,25 +76,25 @@ module ActiveModel
       return super if defined?(super)
     end
 
-    def subject
-      return @subject if defined? @subject
+    def command_subject
+      return @command_subject if defined? @command_subject
 
-      if self.class.subject_name.nil?
+      if self.class.command_subject_name.nil?
         fail UndefinedSubjectError,
-          "Define subject name with .subject macro"
+          "Define subject name with .command_subject macro"
       end
 
-      @subject = send(self.class.subject_name)
+      @command_subject = send(self.class.command_subject_name)
     end
 
     protected
 
     def changed?(attribute_name, strict=false)
       return false unless given?(attribute_name)
-      return false unless subject.present?
-      return false unless subject.respond_to?(attribute_name)
+      return false unless command_subject.present?
+      return false unless command_subject.respond_to?(attribute_name)
 
-      original_value = subject.public_send(attribute_name)
+      original_value = command_subject.public_send(attribute_name)
       given_value = send(attribute_name)
 
       if given_value.kind_of?(Array) && !strict
