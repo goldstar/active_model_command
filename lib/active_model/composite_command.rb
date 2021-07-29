@@ -31,5 +31,16 @@ module ActiveModel
       return command.result if command.success?
       raise HaltedExecution.new(command)
     end
+
+    def with_transaction(&block)
+      ActiveRecord::Base.transaction do
+        begin
+          block.call
+        rescue HaltedExecution => e
+          handle_halted_execution(e)
+          raise ActiveRecord::Rollback
+        end
+      end
+    end
   end
 end

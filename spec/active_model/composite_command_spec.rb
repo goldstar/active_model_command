@@ -110,5 +110,65 @@ RSpec.describe ActiveModel::CompositeCommand do
         end
       end
     end
+
+    context "when composite command uses with transaction helper" do
+      let(:command) { WithTransactionCompositeCommand.new([composite]) }
+      let(:composite) { CompositeCommand.new }
+
+      before "stablish in memory database connection to work with transactions" do
+        ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
+      end
+
+      it "executes block inside a transaction" do
+        expect(ActiveRecord::Base).to receive(:transaction)
+        command.call
+      end
+
+      context "on success" do
+        let(:composite) { CompositeCommand.new([success_command]) }
+
+        before do
+          command.call
+        end
+
+        let(:subcommands) { [success_composite] }
+
+        it { is_expected.to be_success }
+
+        it "has a result" do
+          expect(command.result).to eq(:result)
+        end
+      end
+
+      context "on failure" do
+        before do
+          command.call
+        end
+
+        let(:composite) { CompositeCommand.new([failure_command]) }
+
+        it "adds errors" do
+          expect(errors[:base]).to include(/failure/)
+        end
+
+        it "has a result" do
+          expect(command.result).to eq(:result)
+        end
+      end
+
+      context "which raises" do
+        let(:composite) { CompositeCommand.new([exception_command]) }
+
+        it "bubbles the exception up to the caller" do
+          expect { command.call }.to raise_error(RuntimeError)
+        end
+
+        it "does not have a result" do
+          command.call
+        rescue RuntimeError
+          expect(command.result).to be_nil
+        end
+      end
+    end
   end
 end
