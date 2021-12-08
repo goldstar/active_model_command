@@ -1,5 +1,8 @@
+require "active_model/command/composite"
+
 class CompositeCommand
-  prepend ActiveModel::CompositeCommand
+  include ActiveModel::Command
+  include ActiveModel::Command::Composite
   attr_reader :subcommands
 
   validates :subcommands, presence: true
@@ -8,7 +11,9 @@ class CompositeCommand
     @subcommands = subcommands
   end
 
-  def call
+  private
+  
+  def execute
     subcommands.each do |subcommand|
       call_subcommand subcommand
     end

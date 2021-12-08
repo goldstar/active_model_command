@@ -1,17 +1,13 @@
 class CallbackCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
 
   attr_reader :say
 
   before_validation :set_message
 
-  def call
-    execute_command
-  end
-
   private
 
-  def execute_command
+  def execute
     say
   end
 

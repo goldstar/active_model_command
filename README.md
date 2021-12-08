@@ -44,11 +44,11 @@ A bare minimum example:
 
 ```ruby
 class DoubleItCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
 
   attr_accessor :x
 
-  def call
+  def execute
     x * 2
   end
 end
@@ -63,7 +63,7 @@ A complete overview
 
 ```ruby
 class AuthenticateUser
-  prepend ActiveModel::Command
+  include ActiveModel::Command::All
 
   # Declare your attributes or define your own initialize method
   attr_accessor :ip, :name, :password, :remember_me
@@ -82,13 +82,14 @@ class AuthenticateUser
     authorized_ip?(ip)
   end
 
-  # Declare a possible noop? The command will be successful but never call #call
+  # Declare a possible noop? The command will be successful but will not
+  # execute.
   def noop?
     ...
   end
 
-  # The required #call method defines your result
-  def call
+  # The required #execute method defines your result
+  def execute
     if user && user.validate_password?(password)
       user.generate_token(remember_me)
     else
@@ -109,7 +110,7 @@ class AuthenticateUser
 end
 
 command = AuthenticateUser.new(email: nil, password: "password123")
-command.call #=> command; note the call method is never run because the command is invalid
+command.call #=> command; note the execute method is never run because the command is invalid
 command.errors.full_messages #=> {email: ["Email is blank"] }
 ```
 
@@ -117,7 +118,7 @@ And a more sophisticated example with `authorized?` method.
 
 ```ruby
 class DeletePostCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command::All
 
   attr_accessor :post
 
@@ -125,7 +126,7 @@ class DeletePostCommand
     post.owner == current_user
   end
 
-  def call
+  def execute
     post.destroy
   end
 end
@@ -143,11 +144,11 @@ class Post < ActiveRecord::Base
 end
 
 class CreatePostCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command::All
 
   attr_accessor :content
 
-  def call
+  def execute
     Post.create(content: content)
   end
 end
@@ -161,7 +162,7 @@ Use `after_initialize` to set default.
 
 ```ruby
 class CreatePostCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command::All
 
   attr_accessor :content
 
@@ -169,7 +170,7 @@ class CreatePostCommand
     @content ||= "No content"
   end
 
-  def call
+  def execute
     Post.create(content: content)
   end
 end
@@ -179,7 +180,7 @@ For event sourcing, there's a `noop?` method.
 
 ```ruby
 class UpdatePost
-  prepend ActiveModel::Command
+  include ActiveModel::Command::All
 
   attr_accessor :post, :content
 
@@ -187,7 +188,7 @@ class UpdatePost
     post.content == content
   end
 
-  def call
+  def execute
     build_event
   end
 end
@@ -197,13 +198,13 @@ You can also just include your own initializer similiar to SimpleCommand:
 
 ```ruby
 class CreatePostCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command::All
 
   def initialize(content)
     @content = content
   end
 
-  def call
+  def execute
     Post.create(content: @content)
   end
 end
@@ -215,13 +216,13 @@ Composite commands are commands that can run subcommands which, upon failure or 
 
 ```ruby
 class TestCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
 
   def initialize(on_call)
     @on_call = on_call
   end
 
-  def call
+  def execute
     case @on_call
     when :raise
       raise RuntimeError
@@ -234,7 +235,8 @@ class TestCommand
 end
 
 class CompositeCommand
-  prepend ActiveModel::CompositeCommand
+  include ActiveModel::Command
+  include ActiveModel::Command::Composite
   attr_reader :subcommands
 
   validates :subcommands, presence: true
@@ -243,7 +245,7 @@ class CompositeCommand
     @subcommands = subcommands
   end
 
-  def call
+  def execute
     subcommands.each do |subcommand|
       call_subcommand subcommand
     end
