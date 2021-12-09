@@ -1,9 +1,22 @@
 RSpec.describe ActiveModel::Command do
+  let(:command){ SuccessfulCommand.new(say: "what") }
+
   it "has a version number" do
     expect(ActiveModel::Command::VERSION).not_to be nil
   end
 
-  let(:command){ SuccessfulCommand.new(say: "what") }
+  describe ".prepended" do
+    let(:command_class) { Class.new { prepend ActiveModel::Command } }
+    let(:command){ command_class.new }
+
+    it "includes Command::Noop" do
+      expect(command).to be_a(ActiveModel::Command::Noop)
+    end
+
+    it "includes Command::Subject" do
+      expect(command).to be_a(ActiveModel::Command::Subject)
+    end
+  end
 
   describe "#call" do
     it "changes success? to true" do
