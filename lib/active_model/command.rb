@@ -1,6 +1,8 @@
 require "active_model"
 
 require_relative "command/errors"
+require_relative "command/noop"
+require_relative "command/subject"
 require_relative "command/version"
 
 module ActiveModel
@@ -52,6 +54,7 @@ module ActiveModel
           DEPRECATION
 
           receiver.send :include, Command::Noop
+          receiver.send :include, Command::Subject
         end
       end
 
