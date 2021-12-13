@@ -1,11 +1,13 @@
 class TestCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
 
   def initialize(on_call)
     @on_call = on_call
   end
 
-  def call
+  private
+
+  def execute
     case @on_call
     when :raise
       raise RuntimeError

@@ -1,9 +1,22 @@
 RSpec.describe ActiveModel::Command do
+  let(:command){ SuccessfulCommand.new(say: "what") }
+
   it "has a version number" do
     expect(ActiveModel::Command::VERSION).not_to be nil
   end
 
-  let(:command){ SuccessfulCommand.new(say: "what") }
+  describe ".prepended" do
+    let(:command_class) { Class.new { prepend ActiveModel::Command } }
+    let(:command){ command_class.new }
+
+    it "includes Command::Noop" do
+      expect(command).to be_a(ActiveModel::Command::Noop)
+    end
+
+    it "includes Command::Subject" do
+      expect(command).to be_a(ActiveModel::Command::Subject)
+    end
+  end
 
   describe "#call" do
     it "changes success? to true" do
@@ -32,8 +45,8 @@ RSpec.describe ActiveModel::Command do
           allow(command).to receive(:authorized?).and_return(false)
         end
 
-        it "doesn't call #call" do # and call only calles execute_command
-          expect(command).to_not receive(:execute_command)
+        it "doesn't call #execute" do
+          expect(command).to_not receive(:execute)
           command.call
         end
 
@@ -51,8 +64,27 @@ RSpec.describe ActiveModel::Command do
           allow(command).to receive(:authorized?).and_return(true)
         end
 
-        it "does call #call" do # and call only calles execute_command
-          expect(command).to receive(:execute_command)
+        it "does call #execute" do
+          expect(command).to receive(:execute)
+          command.call
+        end
+
+        it "does set the result" do
+          expect{ command.call }.to change{ command.result }.to("who")
+        end
+
+        it "doesn't have errors" do
+          expect(command.call.errors).to be_empty
+        end
+      end
+    end
+
+    context "with validations" do
+      context "and valid" do
+        let(:command){ ValidatedCommand.new(say: "who") }
+
+        it "does call #execute" do
+          expect(command).to receive(:execute)
           command.call
         end
 
@@ -65,63 +97,43 @@ RSpec.describe ActiveModel::Command do
         end
       end
 
-      context "with validations" do
-        #   validates :say, length: { minimum: 3 }
-        context "and valid" do
-          let(:command){ ValidatedCommand.new(say: "who") }
+      context "and invalid" do
+        let(:command){ ValidatedCommand.new(say: "me") }
 
-          it "does call #call" do # and call only calles execute_command
-            expect(command).to receive(:execute_command)
-            command.call
-          end
-
-          it "does set the result" do
-            expect{ command.call }.to change{ command.result }.to("who")
-          end
-
-          it "doesn't have errors" do
-            expect(command.call.errors).to be_empty
-          end
+        it "does not call #execute" do
+          expect(command).to_not receive(:execute)
+          command.call
         end
 
-        context "and invalid" do
-          let(:command){ ValidatedCommand.new(say: "me") }
+        it "does not set the result" do
+          expect{ command.call }.to_not change{ command.result }
+        end
 
-          it "does not call #call" do # and call only calles execute_command
-            expect(command).to_not receive(:execute_command)
-            command.call
-          end
-
-          it "does not set the result" do
-            expect{ command.call }.to_not change{ command.result }
-          end
-
-          it "has has errors", :aggregate_failures do
-            errors = command.call.errors
-            expect(errors).to be_present
-            expect(errors[:say]).to be_present
-          end
+        it "has has errors", :aggregate_failures do
+          errors = command.call.errors
+          expect(errors).to be_present
+          expect(errors[:say]).to be_present
         end
       end
+    end
 
-      context "the result has errors" do
-        let(:command){ ValidatedResultCommand.call(name: "Jo") }
+    context "the result has errors" do
+      let(:command){ ValidatedResultCommand.call(name: "Jo") }
 
-        it "returns the invalid result", :aggregate_failures do
-          expect(command.result).to be_a(Person)
-        end
+      it "returns the invalid result", :aggregate_failures do
+        expect(command.result).to be_a(Person)
+      end
 
-        it "bubbles up errors to the command" do
-          expect(command.errors).to be_present
-        end
+      it "bubbles up errors to the command" do
+        expect(command.errors).to be_present
       end
     end
 
     context "with callbacks" do
       let(:command){ CallbackCommand.new }
 
-      it "does call #call" do # and call only calles execute_command
-        expect(command).to receive(:execute_command)
+      it "does call #execute" do
+        expect(command).to receive(:execute)
         command.call
       end
 
@@ -131,25 +143,6 @@ RSpec.describe ActiveModel::Command do
 
       it "doesn't have errors" do
         expect(command.call.errors).to be_empty
-      end
-    end
-
-    context "when command has noop? that returns true" do
-      before do
-        allow(command).to receive(:noop?).and_return(true)
-      end
-
-      it "does call #call" do # and call only calles execute_command
-        expect(command).to_not receive(:execute_command)
-        command.call
-      end
-
-      it "is successful" do
-        expect{ command.call }.to change{ command.success? }.from(false).to(true)
-      end
-
-      it "has a nil result" do
-        expect{ command.call }.to_not change{ command.result }
       end
     end
 
@@ -269,56 +262,6 @@ RSpec.describe ActiveModel::Command do
     it "initializes the command and calls #call", :aggregate_failures do
       expect(SuccessfulCommand).to have_received(:new)
       expect(command).to have_received(:call)
-    end
-  end
-
-  describe ".command_subject macro" do
-    let(:klass) {
-      Class.new do
-        prepend ActiveModel::Command
-        command_subject :foo
-      end
-    }
-    let(:instance) { klass.new }
-
-    it "assigns .command_subject_name" do
-      expect(klass.command_subject_name).to eq :foo
-    end
-
-    it "adds accessor for command_subject" do
-      expect(instance).
-        to respond_to(:foo).
-        and respond_to(:foo=)
-    end
-  end
-
-  describe "#command_subject" do
-    let(:instance) { klass.new(foo: "bar") }
-
-    subject { instance.command_subject }
-
-    context "with subject defined by macro" do
-      let(:klass) {
-        Class.new do
-          prepend ActiveModel::Command
-          command_subject :foo
-        end
-      }
-
-      it { is_expected.to eq "bar" }
-    end
-
-    context "without subject defined by macro" do
-      let(:klass) {
-        Class.new do
-          prepend ActiveModel::Command
-          attr_accessor :foo
-        end
-      }
-
-      it "fails with exception" do
-        expect { subject }.to raise_error(described_class::UndefinedSubjectError)
-      end
     end
   end
 end

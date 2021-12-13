@@ -1,11 +1,7 @@
 class AfterInitializeCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
 
   attr_accessor :say
-
-  def call
-    execute_command
-  end
 
   def after_initialize
     @say = "#{say}!"
@@ -13,8 +9,7 @@ class AfterInitializeCommand
 
   private
 
-  def execute_command
+  def execute
     say
   end
-
 end

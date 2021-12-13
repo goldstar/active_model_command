@@ -1,11 +1,7 @@
 class AuthorizedCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
 
   attr_accessor :say, :current_user
-
-  def call
-    execute_command
-  end
 
   def authorized?
     current_user.admin?
@@ -13,7 +9,7 @@ class AuthorizedCommand
 
   private
 
-  def execute_command
+  def execute
     say
   end
 end

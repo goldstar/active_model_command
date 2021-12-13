@@ -1,9 +1,11 @@
 class GivenCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
 
   attr_accessor :name
 
-  def call
+  private
+
+  def execute
     name if given?(:name)
   end
 end

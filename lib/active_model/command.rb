@@ -1,119 +1,141 @@
 require "active_model"
-require "active_model/command/version"
+
+require_relative "command/errors"
+require_relative "command/noop"
+require_relative "command/subject"
+require_relative "command/version"
 
 module ActiveModel
   module Command
-    AlreadyExecuted = Class.new(RuntimeError)
-    UndefinedSubjectError = Class.new(StandardError)
-    UnsupportedErrors = Class.new(RuntimeError)
-
     attr_reader :result
 
     module ClassMethods
       def call(*args, **kwargs)
         new(*args, **kwargs).call
       end
+    end
 
-      attr_accessor :command_subject_name
-
-      def command_subject(value)
-        self.command_subject_name = value
-        attr_accessor value
+    module InstanceMethods
+      module PrependMethods
+        def initialize(*args, **kwargs)
+          super(*args, **kwargs)
+          after_initialize if defined? after_initialize
+        end
       end
-    end
 
-    def self.prepended(base)
-      base.extend ClassMethods
-      base.send(:include, ActiveModel::Model)
-      base.send(:include, ActiveModel::Validations::Callbacks)
-    end
+      module DeprecatedPrependMethods
+        Deprecation = ActiveSupport::Deprecation.new('1.0', 'ActiveModel::Command')
 
-    def initialize(*args, **kwargs)
-      super(*args, **kwargs) # Either defined in class or passed up to ActiveModel::Model
-      after_initialize
-    end
+        def call
+          fail AlreadyExecuted if called?
+          fail NotImplementedError, "Define call in your Command" unless defined?(super)
 
-    def call
-      fail AlreadyExecuted if called?
-      fail NotImplementedError, "Define call in your Command" unless defined?(super)
+          called!
+          if !authorized?
+            errors.add(:base, :unauthorized)
+          elsif valid? && !noop?
+            @result = super
+            if @result.respond_to?(:errors) && @result.errors.kind_of?(ActiveModel::Errors)
+              errors.merge!(@result.errors)
+            elsif @result.respond_to?(:errors)
+              fail UnsupportedErrors, "Errors on result but not ActiveModel::Errors. Unable to merge."
+            end
+          end
 
-      @called = true
-      if !authorized?
-        errors.add(:base, :unauthorized)
-      elsif valid? && !noop?
-        @result = super
+          self
+        end
+
+        def self.prepended(receiver)
+          Deprecation.deprecation_warning <<~DEPRECATION
+          Using `prepend` is being deprecated in favor of `include`. With
+          this comes a change to the default features included. To preserve
+          the behavior of including all features you can include
+          `ActiveModel::Command::All`
+          DEPRECATION
+
+          receiver.send :include, Command::Noop
+          receiver.send :include, Command::Subject
+        end
+      end
+
+      def self.included(receiver)
+        receiver.send :prepend, PrependMethods
+      end
+
+      def authorize
+        errors.add(:base, :unauthorized) unless authorized?
+      end
+
+      def authorized?
+        true
+      end
+
+      def call
+        fail AlreadyExecuted if called?
+
+        authorize
+        return self if errors.present?
+
+        validate
+        return self if errors.present?
+
+        @result = execute
         if @result.respond_to?(:errors) && @result.errors.kind_of?(ActiveModel::Errors)
           errors.merge!(@result.errors)
         elsif @result.respond_to?(:errors)
           fail UnsupportedErrors, "Errors on result but not ActiveModel::Errors. Unable to merge."
         end
+
+        return self
+      ensure
+        called!
       end
 
-      self
-    end
-
-    def success?
-      called? && !failed?
-    end
-    alias_method :successful?, :success?
-
-    def failed?
-      called? && errors.any?
-    end
-    alias_method :failure?, :failed?
-
-    def authorized?
-      return super if defined?(super)
-      true
-    end
-
-    def noop?
-      return super if defined?(super)
-      false
-    end
-
-    def after_initialize
-      return super if defined?(super)
-    end
-
-    def command_subject
-      return @command_subject if defined? @command_subject
-
-      if self.class.command_subject_name.nil?
-        fail UndefinedSubjectError,
-          "Define subject name with .command_subject macro"
+      def called?
+        !!@called
       end
 
-      @command_subject = send(self.class.command_subject_name)
-    end
+      def execute
+        raise NotImplementedError
+      end
 
-    protected
+      def failed?
+        called? && errors.any?
+      end
+      alias_method :failure?, :failed?
 
-    def changed?(attribute_name, strict=false)
-      return false unless given?(attribute_name)
-      return false unless command_subject.present?
-      return false unless command_subject.respond_to?(attribute_name)
+      def success?
+        called? && !failed?
+      end
+      alias_method :successful?, :success?
 
-      original_value = command_subject.public_send(attribute_name)
-      given_value = send(attribute_name)
+      private
 
-      if given_value.kind_of?(Array) && !strict
-        original_value ||= []
-        given_value.sort != original_value.sort
-      else
-        given_value != original_value
+      def called!
+        @called = true
+      end
+
+      def given?(attribute_name)
+        respond_to?(attribute_name) &&
+        instance_variable_defined?("@#{attribute_name}")
       end
     end
 
-    def given?(attribute_name)
-      respond_to?(attribute_name) &&
-      instance_variable_defined?("@#{attribute_name}")
+    def self.apply_to(receiver)
+      receiver.send :include, ActiveModel::Model
+      receiver.send :include, ActiveModel::Validations::Callbacks
+      receiver.send :extend,  ClassMethods
+      receiver.send :include, InstanceMethods
+    end
+    private_class_method :apply_to
+
+    def self.included(receiver)
+      apply_to(receiver)
     end
 
-    private
-
-    def called?
-      @called ||= false
+    def self.prepended(receiver)
+      apply_to(receiver)
+      receiver.send :prepend, InstanceMethods::DeprecatedPrependMethods
     end
   end
 end

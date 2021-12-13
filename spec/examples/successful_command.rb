@@ -1,15 +1,14 @@
+require "active_model/command/noop"
+
 class SuccessfulCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
+  include ActiveModel::Command::Noop
 
   attr_accessor :say
 
-  def call
-    execute_command
-  end
-
   private
 
-  def execute_command
+  def execute
     say
   end
 

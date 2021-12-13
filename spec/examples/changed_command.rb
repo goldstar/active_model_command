@@ -1,5 +1,8 @@
+require "active_model/command/subject"
+
 class ChangedCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
+  include ActiveModel::Command::Subject
 
   class User
     include ActiveModel::Model
@@ -11,14 +14,14 @@ class ChangedCommand
 
   attr_accessor :name, :sorted_tags, :unsorted_tags
 
-  def call
+  private
+
+  def execute
     check_name
     check_sorted_tags
     check_unsorted_tags
     results
   end
-
-  private
 
   def results
     @results ||= []

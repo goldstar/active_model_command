@@ -11,18 +11,13 @@ class Person
 end
 
 class ValidatedResultCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
 
   attr_accessor :name 
 
-  def call
-    execute_command
-  end
-
   private
 
-  def execute_command
+  def execute
     Person.new(name: name).tap{ |p| p.valid? }
   end
-
 end

@@ -1,18 +1,13 @@
 class DeclaredInitializeCommand
-  prepend ActiveModel::Command
+  include ActiveModel::Command
 
-  def call
-    execute_command
-  end
-
-  def initialize(say: say)
+  def initialize(say:)
     @say = "#{say}!"
   end
 
   private
 
-  def execute_command
+  def execute
     @say
   end
-
 end
