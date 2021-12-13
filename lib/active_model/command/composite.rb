@@ -1,22 +1,18 @@
+# frozen_string_literal: true
+
+require_relative "rescuable"
+
 module ActiveModel
   module Command
     module Composite
       module InstanceMethods
-        module PrependMethods
-          def execute
-            super
-          rescue HaltedExecution => error
-            handle_halted_execution(error)
-          end
-        end
-
         module DeprecatedPrependMethods
           Deprecation = ActiveSupport::Deprecation.new('1.0', 'ActiveModel::Command')
 
           def call
             super
-          rescue HaltedExecution => error
-            handle_halted_execution(error)
+          rescue SubcommandFailure => error
+            handle_failed_subcommand(error)
             self
           end
 
@@ -32,22 +28,18 @@ module ActiveModel
           end
         end
 
-        def self.included(receiver)
-          receiver.send :prepend, PrependMethods
-        end
-
         private
-
-        def handle_halted_execution(error)
-          @errors.merge!(error.command.errors)
-          @result = nil
-        end
 
         def call_subcommand(command)
           raise ArgumentError, "not a command" unless command.is_a?(Command)
           command.call unless command.called?
           return command.result if command.success?
-          raise HaltedExecution.new(command)
+          raise SubcommandFailure.new(command)
+        end
+
+        def handle_failed_subcommand(error)
+          @errors.merge!(error.command.errors)
+          @result = nil
         end
       end
 
@@ -59,7 +51,10 @@ module ActiveModel
 
       def self.included(receiver)
         receiver.send :include, ActiveModel::Command
+        receiver.send :include, ActiveModel::Command::Rescuable
         receiver.send :include, InstanceMethods
+
+        receiver.rescue_from SubcommandFailure, with: :handle_failed_subcommand
       end
     end
   end
